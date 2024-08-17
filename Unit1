@@ -1,0 +1,381 @@
+Práctica Unidad 1: Manejo de bases de datos
+
+
+1) Instalar XAMPP
+https://www.apachefriends.org/
+
+2) Línea de comandos (consola:  cmd)
+
+ir a carpeta C:\xampp\mysql\bin>
+
+arrancar el cliente     ⇒ mysql (-u root)
+arrancar el servidor   ⇒ mysqld
+detener el servidor     ⇒ mysqladmin -u root shutdown
+algunos comandos básicos (desde el cliente):
+
+SHOW DATABASES;
+create database mibd;
+use mibd;
+create table usuarios (id int, nombre varchar(50));
+SHOW TABLES;
+insert into usuarios values (1, "pepe");
+select * from usuarios;
+drop database mibd;
+quit;
+3) Conectar con el cliente DBeaver (versión Community)
+https://dbeaver.io/
+
+4) Arrancar XAMPP ⇒ phpMyAdmin
+http://localhost/phpmyadmin
+
+Crear una base de datos
+Crear una tabla
+Insertar / actualizar / eliminar / consultar datos
+VER SQL DE CADA ACCIÓN
+Ejemplo - 10 clientes, 3 usuarios:
+
+campos para tabla “clientes”:
+
+id (INT)
+nombre (VARCHAR)
+apellido (VARCHAR)
+email (VARCHAR)
+telefono (VARCHAR)
+localidad (VARCHAR)
+-- Crear la base de datos si no existe
+CREATE DATABASE IF NOT EXISTS gestion_clientes;
+
+-- Usar la base de datos
+USE gestion_clientes;
+
+-- Crear la tabla 'clientes'
+CREATE TABLE clientes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL,
+    apellido VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    telefono VARCHAR(20),
+    localidad VARCHAR(50) NOT NULL
+);
+
+-- Insertar 10 registros en la tabla 'clientes'
+INSERT INTO clientes (nombre, apellido, email, telefono, localidad) VALUES
+('Juan', 'Pérez', 'juan.perez@example.com', '123-456-7890', 'San Salvador'),
+('María', 'Gómez', 'maria.gomez@example.com', '234-567-8901', 'San Salvador'),
+('Carlos', 'Martínez', 'carlos.martinez@example.com', '345-678-9012', 'San Miguel'),
+('Laura', 'Rodríguez', 'laura.rodriguez@example.com', '456-789-0123', 'Usulután'),
+('Luis', 'Hernández', 'luis.hernandez@example.com', '567-890-1234', 'San Miguel'),
+('Ana', 'López', 'ana.lopez@example.com', '678-901-2345', 'San Salvador'),
+('Pedro', 'García', 'pedro.garcia@example.com', '789-012-3456', 'Santa Ana'),
+('Lucía', 'Sánchez', 'lucia.sanchez@example.com', '890-123-4567', 'San Salvador'),
+('Miguel', 'Romero', 'miguel.romero@example.com', '901-234-5678', 'Santa Ana'),
+('Elena', 'Díaz', 'elena.diaz@example.com', '012-345-6789', 'Santa Ana');
+
+campos para tabla “usuarios”:
+id (INT)
+nombre (VARCHAR)
+apellido (VARCHAR)
+email (VARCHAR)
+login (VARCHAR)
+pwd (VARCHAR)
+rol (ENUM{‘admin’, ‘empleado’})
+-- Crear la base de datos si no existe
+CREATE DATABASE IF NOT EXISTS gestion_usuarios;
+
+-- Usar la base de datos
+USE gestion_usuarios;
+
+-- Crear la tabla 'usuarios'
+CREATE TABLE usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL,
+    apellido VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    login VARCHAR(50) NOT NULL UNIQUE,
+    pwd VARCHAR(255) NOT NULL,
+    rol_usuario ENUM('admin', 'empleado') NOT NULL
+);
+
+-- Insertar 3 registros en la tabla 'usuarios'
+INSERT INTO usuarios (nombre, apellido, email, login, pwd, rol_usuario) VALUES
+('Juan', 'Pérez', 'juan.perez@example.com', 'juan', SHA2('1234', 256), 'admin'),
+('María', 'Gómez', 'maria.gomez@example.com', 'maria', SHA2('1234', 256), 'empleado'),
+('Carlos', 'Martínez', 'carlos.martinez@example.com', 'carlos', SHA2('1234', 256), 'empleado');
+
+5) Acceso web con PHP (+ HTML + Javascript)
+https://www.php.net/manual/es/
+https://www.php.net/manual/es/set.mysqlinfo.php
+
+index.html (HTML)
+login.php (PHP)
+dashboard.php (HTML /PHP)
+HTML (index.php)
+<?php
+session_start();
+if(isset($_POST['logoff']) && $_POST['logoff']=='logoff')
+{
+	unset($_SESSION);
+	$_SESSION = array();
+	session_destroy();
+}
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Acceso</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h2>Formulario de Acceso</h2>
+    <form action="login.php" method="post">
+        <label for="login">ID:</label>
+        <input type="text" id="login" name="login" required><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br><br>
+        <input type="submit" value="Acceder">
+    </form>
+    <div id="error-message" style="color:red;">
+        <?php
+        if (isset($_GET['error'])) {
+            echo htmlspecialchars($_GET['error']);
+        }
+        ?>
+    </div>
+	<hr/>
+	<pre><?print_r($_SESSION);?></pre>
+</body>
+</html>
+
+
+PHP (login.php)
+<?php
+session_start();
+$servername = "localhost";
+$username = "root"; // Cambia esto según tu configuración
+$password = ""; // Cambia esto según tu configuración
+$dbname = "gestion_usuarios";
+
+// Conectar a la base de datos
+$conn = new mysqli($servername, $username, $password, $dbname);
+if ($conn->connect_error) {
+    die("Conexión fallida: " . $conn->connect_error);
+}
+if(!$conn->set_charset("utf8")){
+    die("Error juego caracteres UTF8: " . $conn->error);
+}
+
+// Obtener datos del formulario
+$login = $_POST['login'];
+$password = $_POST['password'];
+
+// Encriptar la contraseña para compararla con la almacenada
+$hashed_password = hash('sha256', $password);
+
+// Consultar en la base de datos
+$sql = "SELECT * FROM usuarios WHERE login = '$login' AND pwd = '$hashed_password'";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+    // Usuario validado
+    $user = $result->fetch_assoc();
+    $_SESSION['login'] = $user['login'];
+    $_SESSION['rol_usuario'] = $user['rol_usuario'];
+    header("Location: dashboard.php");
+} else {
+    // Usuario no validado
+    header("Location: ./?error=Usuario o contraseña incorrectos");
+}
+$conn->close();
+?>
+
+
+PHP 2 (dashboard.php)
+<?php
+session_start();
+if (!isset($_SESSION['login'])) {
+    header("Location: ./");
+    exit();
+}
+
+$servername = "localhost";
+$username = "root"; // Cambia esto según tu configuración
+$password = ""; // Cambia esto según tu configuración
+$dbname = "gestion_usuarios";
+
+// Conectar a la base de datos
+$conn = new mysqli($servername, $username, $password, $dbname);
+if ($conn->connect_error) {
+    die("Conexión fallida: " . $conn->connect_error);
+}
+if(!$conn->set_charset("utf8")){
+    die("Error juego caracteres UTF8: " . $conn->error);
+}
+
+// Función para obtener el listado de usuarios
+function obtenerUsuarios($conn) {
+    $sql = "SELECT * FROM usuarios";
+    $result = $conn->query($sql);
+    $usuarios = [];
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $usuarios[] = $row;
+        }
+    }
+    return $usuarios;
+}
+
+// Función para obtener el listado de clientes
+function obtenerClientes($conn) {
+    $sql = "SELECT * FROM clientes";
+    $result = $conn->query($sql);
+    $clientes = [];
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $clientes[] = $row;
+        }
+    }
+    return $clientes;
+}
+
+$rol_usuario = $_SESSION['rol_usuario'];
+$usuarios = [];
+$clientes = obtenerClientes($conn);
+if ($rol_usuario == 'admin') {
+    $usuarios = obtenerUsuarios($conn);
+}
+?>
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+</head>
+<body>
+    <h2>Bienvenido, <?php echo htmlspecialchars($_SESSION['login']); ?></h2>
+    <?php if ($rol_usuario == 'admin') : ?>
+        <h3>Listado de Usuarios</h3>
+        <table border="1">
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Email</th>
+                <th>Login</th>
+                <th>Rol</th>
+            </tr>
+            <?php foreach ($usuarios as $usuario) : ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($usuario['id']); ?></td>
+                    <td><?php echo htmlspecialchars($usuario['nombre']); ?></td>
+                    <td><?php echo htmlspecialchars($usuario['apellido']); ?></td>
+                    <td><?php echo htmlspecialchars($usuario['email']); ?></td>
+                    <td><?php echo htmlspecialchars($usuario['login']); ?></td>
+                    <td><?php echo htmlspecialchars($usuario['rol_usuario']); ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
+    <?php endif; ?>
+
+    <h3>Listado de Clientes</h3>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Apellido</th>
+            <th>Email</th>
+            <th>Teléfono</th>
+            <th>Localidad</th>
+        </tr>
+        <?php foreach ($clientes as $cliente) : ?>
+            <tr>
+                <td><?php echo htmlspecialchars($cliente['id']); ?></td>
+                <td><?php echo htmlspecialchars($cliente['nombre']); ?></td>
+                <td><?php echo htmlspecialchars($cliente['apellido']); ?></td>
+                <td><?php echo htmlspecialchars($cliente['email']); ?></td>
+                <td><?php echo htmlspecialchars($cliente['telefono']); ?></td>
+                <td><?php echo htmlspecialchars($cliente['localidad']); ?></td>
+            </tr>
+        <?php endforeach; ?>
+    </table>
+
+    <hr/>
+    <form action="index.php" method="post">
+        <input type="hidden" id="logoff" name="logoff" value="logoff"><br><br>
+        <input type="submit" value="Salir">
+    </form>
+</body>
+</html>
+
+<?php
+$conn->close();
+?>
+
+Instalación de Python:
+Ir a: https://www.python.org/ ⇒ Downloads
+Al iniciar el instalador seleccionar las opciones "Use admin privileges..." y "Add python.exe to PATH", y pulsar la opción "Install Now" (ver imagen a continuación)
+Al terminar la instalación dispondremos en nuestro equipo del intérprete de Python, que puede ser invocado con el comando "python" o con el alias "py". También dispondremos del gestor de paquetes "pip", que ermite instalar nuevos paquetes de Python que no vienen incluidos con la instalación por defecto.
+
+Para la siguiente práctica hay que instalar los paquetes "pandas" (almacenar y procesar datos) y "mysql-connector-python" (comunicación con base de datos MySQL/MariaDB), para ello, desde la terminal del sistema ejecutamos los siguientes comandos:
+
+> pip install pandas
+> pip install mysql-connector-python
+
+El código Python que aparece a continuación, se puede transcribir en un fichero de texto con extensión .py (datos.py por ejemplo), para ejecutarlo usaremos el siguiente comando en la terminal:
+
+> python datos.py   (también valdría: py datos.py)
+
+import mysql.connector
+import pandas as pd
+
+# Configuración de la base de datos
+db_config = {
+    'user': 'root',        # Cambia esto según tu configuración
+    'password': '',        # Cambia esto según tu configuración
+    'host': '127.0.0.1',
+    'database': 'gestion_usuarios'
+}
+
+# Conectar a la base de datos
+conn = mysql.connector.connect(**db_config)
+cursor = conn.cursor()
+
+# Realizar una consulta
+query = "SELECT * FROM clientes"
+cursor.execute(query)
+
+# Obtener los resultados y cargarlos en un dataframe de pandas
+result = cursor.fetchall()
+columns = [col[0] for col in cursor.description]
+df = pd.DataFrame(result, columns=columns)
+
+# Mostrar el dataframe
+print(df)
+
+# Cerrar la conexión
+cursor.close()
+conn.close()
+
+
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
