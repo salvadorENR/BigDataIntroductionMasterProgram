@@ -1,0 +1,169 @@
+Enunciado 1: VENTA DE COCHES
+
+Una empresa multinacional que se dedica a la fabricación y venta de vehículos quiere diseñar un cubo OLAP para su Data Warehouse para almacenar las ventas de coches. Deberá realizarse un diseño en estrella (no en copo de nieve), es decir, una tabla central con los valores de las medidas de negocio (tabla de hechos) y una tabla más por cada dimensión o parámetro en función del cual se expresan los valores de la tabla de hechos.
+
+De cada venta (medida del negocio) hay que saber cuándo se realizó (qué día), quién hizo la compra, dónde y qué modelo de vehículo es el que se ha vendido. Adicionalmente hay que saber, el coste básico de fabricación (sin extras), el coste de los extras, los gastos que ha tenido ese vehículo para la empresa (desplazamientos + gasolina + etc…), el precio de venta y el beneficio de la venta.
+
+Sobre la dimensión “Tiempo” decir que debe estar diseñada para poder realizar de forma óptima agrupaciones por días, meses, trimestres y años (4 niveles de granularidad).
+
+Sobre los compradores, se debe guardar su nombre/denominación, y hay que poder distinguir si son empresas o personas, en el primer caso hay que saber el departamento que hace la compra, y en el segundo hay que saber el sexo (hombre o mujer) y la edad del comprador.
+
+Las ventas se realizan en concesionarios o puntos de venta de los que hay que saber, además de su código, la denominación y la dirección completa (calle, número, código postal, localidad, provincia y país).
+
+Sobre los modelos de vehículos que fabrica y vende esta empresa, hay que saber su código, denominación, el color, número de puertas, las características del motor: diesel/gasolina, cilindrada y caballos de potencia; y su año de diseño.
+
+Solución:
+
+
+CREATE TABLE Dimension_Modelo (
+    idModelo INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(20),
+    denominacion VARCHAR(100),
+    color VARCHAR(50),
+    numeroPuertas INT,
+    tipoMotor ENUM('diesel', 'gasolina'),
+    cilindrada INT,
+    potencia INT,
+    anyoDisenyo INT
+);
+CREATE TABLE Dimension_PuntoVenta (
+    idPuntoVenta INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(20),
+    denominacion VARCHAR(100),
+    calle VARCHAR(100),
+    numero VARCHAR(10),
+    codigoPostal VARCHAR(10),
+    localidad VARCHAR(50),
+    provincia VARCHAR(50),
+    pais VARCHAR(50)
+);
+CREATE TABLE Dimension_Comprador (
+    idComprador INT AUTO_INCREMENT PRIMARY KEY,
+    nombreDenominacion VARCHAR(100),
+    tipoComprador ENUM('empresa', 'persona'),
+    departamento VARCHAR(100),  -- Solo para empresas
+    sexo ENUM('hombre', 'mujer'),  -- Solo para personas
+    edad INT  -- Solo para personas
+);
+CREATE TABLE Dimension_Tiempo (
+    idTiempo INT AUTO_INCREMENT PRIMARY KEY,
+    fecha DATE,
+    dia INT,
+    mes INT,
+    trimestre INT,
+    anyo INT
+);
+CREATE TABLE Hechos_Ventas (
+    idVenta INT AUTO_INCREMENT PRIMARY KEY,
+    idTiempo INT,
+    idComprador INT,
+    idPuntoVenta INT,
+    idModelo INT,
+    costeBasico FLOAT,
+    costeExtras FLOAT,
+    gastos FLOAT,
+    precioVenta FLOAT,
+    beneficio FLOAT,
+    FOREIGN KEY (idTiempo) REFERENCES Dimension_Tiempo(idTiempo),
+    FOREIGN KEY (idComprador) REFERENCES Dimension_Comprador(idComprador),
+    FOREIGN KEY (idPuntoVenta) REFERENCES Dimension_PuntoVenta(idPuntoVenta),
+    FOREIGN KEY (idModelo) REFERENCES Dimension_Modelo(idModelo)
+);
+
+
+
+==========================================================================
+Enunciado 2: HÁBITOS DE CONSUMO (Club Carrefive)
+
+La cadena de grandes almacenes Carrefive, con el fin de poder realizar estudios de mercado más precisos sobre los hábitos de consumo de sus clientes ha decidido lanzar la tarjeta “Club-Carrefive”. Los clientes que muestren dicha tarjeta en caja al hacer sus compras podrán disfrutar de descuentos y beneficiarse de ciertas promociones, a cambio, la cadena podrá saber qué cosas compra cada cliente y utilizar dicha información para estudiar el comportamiento de estos y poder así mejorar el servicio y obtener mejores resultados. Se pide diseñar un cubo OLAP en estrella que cumpla las especificaciones que se describen a continuación y realizar las consultas que se detallan al final.
+
+Cuando un cliente decide hacerse la tarjeta “Club-Carrefive” debe rellenar un formulario en el que pone la siguiente información: nombre y apellidos, sexo, estado civil (soltero, casado, vive en pareja, separado, viudo), año de nacimiento, sexo de su cónyuge/pareja, año de nacimiento del cónyuge/pareja, número de hijos menores de 10 años, número de hijos entre 10 y 16 años, número de hijos mayores de 16 años, código postal, localidad, provincia y región. Además, el sistema asigna un identificador numérico único a cada cliente al ser registrado.
+
+Acerca de los productos que un cliente puede comprar, el sistema almacena la siguiente información: un código numérico único para cada producto, el nombre, marca y modelo (por ejemplo: leche, Pascual, desnatada o frigorífico, Edesa, no-frost 180 cm), si está o no de oferta, la familia a la que pertenece (electrodoméstico, alimentación, jardinería, etc...) y la subfamilia (para alimentación: Producto lácteo, cárnico, pescado, etc...; para electrodoméstico: televisor, cámara fotográfica, lavadora, etc...). Sobre el campo “está o no en oferta” decir que es un campo booleano que podrá variar a lo largo del tiempo ya que un producto en concreto podrá estar en oferta durante un determinado periodo, pero no necesariamente tiene que estarlo permanentemente.
+
+Sobre el tipo de consultas que se han de poder realizar sobre el cubo OLAP diseñado decir que éstas han de poder mostrar resultados agrupados temporalmente por años, trimestres, meses y días, pero también por días de la semana.
+
+Cada vez que un producto pasa por caja se registran los códigos de producto, cliente y tiempo así como el coste del producto, el precio de venta (facturación) y si se ha vendido en oferta o no.
+
+
+
+==========================================================================
+
+Enunciado 3: TRATAMIENTOS E HISTORIALES MÉDICOS
+
+La gerencia de un hospital quiere implantar en un data warehouse un módulo para almacenar información histórica sobre las consultas y visitas de sus pacientes y los médicos que los han atendido, el objetivo es llevar un registro del coste y duración de cada tratamiento que se aplica a algún paciente, para ello se pide diseñar un cubo OLAP de 4 dimensiones: médicos, pacientes, síntomas y tiempos.
+
+De los médicos hay que almacenar un identificador numérico, su nombre y apellidos, y su especialidad (pediatría, oncología, oftalmología, cirugía, traumatología, etc...).
+
+Los pacientes también tienen un identificador numérico, nombre, apellidos y además año de nacimiento, dirección, código postal, localidad y provincia.
+
+Cada síntoma, en realidad debe entenderse como la descripción textual de uno o varios síntomas, por ejemplo: “fiebre” o “fiebre y dolor de cabeza” o “picor intenso en el brazo y enrojecimiento” o “dolor abdominal, fiebre y tensión alta”, etc..., por lo tanto de los síntomas hay que saber su identificador numérico y su descripción que tendrá que ser un texto largo (aunque no tanto como para un campo ‘memo’).
+
+Sobre el tiempo la unidad mínima de granularidad debe ser una fecha que incluya hora y minuto (dd/mm/aaaa hh:mm), además los periodos de tiempo deben poder agruparse por días, semanas, meses y años.
+
+Los tratamientos, objetivo del cubo OLAP, deben almacenar, además de una referencia (clave ajena) a cada una de las tablas de dimensiones, el coste del tratamiento y su duración en días.
+
+
+
+==========================================================================
+
+Enunciado 4: Televisión a la carta
+
+Una empresa (canal de televisión) que proporciona programas a la carta a sus abonados desea crear un Data Mart para poder analizar en profundidad la demanda que esos clientes hacen de sus programas a lo largo del tiempo, según qué franjas horarias y además quieren poder estudiar qué gastos hacen estos clientes al solicitar programas.
+
+El funcionamiento del servicio es el siguiente: Un cliente contrata un servicio por el cual puede ver, sin coste añadido, la programación básica (documentales, series, informativos, etc...), el usuario puede demandar ver cualquiera de estos programas cuando desee sin que esto suponga ningún gasto adicional por su parte. Además, la empresa ofrece una serie de programas más exclusivos por los que cobra una determinada cantidad (películas de estreno, espectáculos, eventos deportivos, etc...).
+
+El objeto de estudio (hecho) es la solicitud de programas por parte del cliente. En cada solicitud intervienen un cliente, un programa y una hora (tiempo), además, cada solicitud tendrá un importe para el cliente (cero en el caso de programas básicos). Estas solicitudes se deben poder estudiar en función de los tres parámetros mencionados (dimensiones) y que se describen a continuación:
+
+
+Tiempo.- El tiempo debe poder medirse en horas y minutos, pero también se debe poder agrupar en días, día de la semana, semana, meses, cuatrimestres y años.
+Programas.- Cada programa tendrá un identificador numérico y un título, pero también los siguientes campos: básico (para indicar si es un programa básico o no), tipo (serie, película, animación, deporte, documental, otros), subtipo (ciencia ficción, aventuras, drama, romántica, infantil, adolescente, fútbol, tenis, etc…), temporada (número entero, para las series), episodio (número entero, para las series), estreno (Sí/No, para las películas y series) y precio.
+Cliente.- Del cliente se guardará un identificador numérico, su nombre y apellidos, año de nacimiento, sexo (Hombre/Mujer), estado civil (soltero/casado), número de hijos, hijos menores de 12 años (sí/no), hijos entre 13 y 17 años (sí/no), hijos mayores de 18 años (sí/no), dirección, código postal, localidad, provincia y comunidad autónoma.
+
+==========================================================================
+
+Enunciado 5: Cadena de establecimientos tipo ‘fnac’
+
+Considérese una cadena de establecimientos tipo ‘fnac’ especializada en la venta de libros, de contenidos en soporte digital (CDs y DVDs) y de diverso material electrónico (ordenadores, consolas de juego, reproductores MP3, teléfonos, etc…). Se pide realizar un diseño de base de datos en estrella para un cubo OLAP e implementar algunas consultas sobre dicho cubo según las siguientes especificaciones.
+
+Cada operación de venta debe almacenar el coste del artículo vendido, su precio de venta y el beneficio de dicha venta. Cada artículo vendido dispone de un identificador de artículo (num), un tipo (libro, música, ordenador, consola, teléfono, …) un nombre, la editorial y año de edición para cuando se corresponda (un ordenador no tiene editorial ni año de edición, pero un libro o un CD de música sí); y la marca y el modelo del artículo para cuando corresponda.
+
+Cada venta es realizada por un empleado a un cliente. Del empleado se guardará un identificador, el nombre, los apellidos, la fecha de nacimiento, la fecha de contratación y la fecha de despido (para cuando corresponda). Del cliente se almacena, no sus datos personales sino sus características, es decir, el tipo de cliente de que se trata, los campos serán un identificador, el sexo, la edad, el código postal, la localidad y la provincia.
+
+Las ventas se realizan en las tiendas de la cadena, de estas hay que saber su identificador, su nombre, el código postal, la localidad y la provincia.
+
+Por último, hay que saber cuando se realiza cada venta, habrá un identificador de tiempo y este deberá poder agrupar por años, meses semanas y hora del día (entiéndase hora, minuto y segundo).
+
+
+==========================================================================
+
+Enunciado 6: TRANSACCIONES BANCARIAS
+
+Un banco internacional desea diseñar un cubo OLAP para su Data Warehouse con el objetivo de analizar las transacciones realizadas por sus clientes. El cubo debe permitir a los analistas de negocio estudiar el comportamiento de los clientes, la distribución de las transacciones por tipo, las localizaciones desde donde se realizan las operaciones, y el tiempo en que se efectúan dichas transacciones.
+
+Las métricas a estudiar son los montos de las transacciones, el saldo restante después de una transacción y la comisión aplicada (si la hubiera), todas estas métricas deben poder analizarse en función del tiempo o momento en el que ocurre una transacción, el tipo o perfil de cliente, el tipo de transacción y la ubicación geográfica de la sucursal o cajero desde el que se realiza dicha transacción.
+
+Con respecto al tiempo, se deben poder hacer análisis por horas, días, semanas mese trimestres y años.
+
+De los clientes se espera poder clasificarlos en función de varias características como su género o sexo, su edad (fecha de nacimiento), su estado civil, ocupación o tipo de trabajo, su ciudad, provincia y país. Naturalmente, hay que almacenar también el identificador de cada cliente.
+
+Para los diferentes tipos de transacción hay que conocer el ID de la transacción, el tipo de transacción (p.e.: retiro, depósito, transferencia, pago de servicios, etc.), la categoría de la transacción (p.e.: débito, crédito) y el canal a través del cual se efectuó la transacción (p.e.: cajero automático, en línea, en sucursal, móvil).
+
+Con respecto a la ubicación geográfica, se necesita saber su ID, su denominación, su código postal, la ciudad, provincia, país y tipo de sucursal (p.e.: física, virtual).
+
+
+
+==========================================================================
+
+Enunciado 7: GESTIÓN DE PÓLIZAS Y RECLAMACIONES
+Una compañía multinacional dedicada a la comercialización de seguros desea diseñar un cubo OLAP para su Data Warehouse con el objetivo de analizar las pólizas emitidas y las reclamaciones presentadas por sus asegurados. El cubo debe permitir a los analistas de negocio estudiar el comportamiento de los clientes, la distribución de las reclamaciones por tipo, las regiones donde se presentan más reclamaciones, y el tiempo en que se efectúan dichas reclamaciones.
+
+Con respecto al tiempo, se quiere que los análisis se puedan realizar en función de cuándo ocurren las operaciones, en qué día/fecha, día de la semana, semana del año, mes, trimestre y año.
+
+De cada asegurado hay que conocer su identificador, nombre completo, sexo, feha de nacimiento, estado civil, nivel de estudios, ocupación, dirección completa (código postal, ciudad, provincia, país) y tipo de cliente (particular o empresa).
+
+De las pólizas que un cliente puede contratar se guardará su identificador, su denominación (p.e.: seguro de automóvil, seguro de hogar, seguro de vida, etc.), el tipo de póliza (p.e.:  vida, salud, propiedad, etc…), el nivel de cobertura (p.e.: básico, intermedio, completo) y la prima anual.
+
+Respecto a las oficinas/agentes que gestionan las pólizas y las reclamaciones, hay que conocer su identificados, su denominación o nombre, la dirección (código postal, ciudad, provincia, país), el tipo de oficina (central, sucursal, agente independiente) y la zona de cobertura (local, regional, nacional)
+
+Las métricas que se quieren poder analizar son los montos de una reclamación, el monto pagado por la compañía y el estado de la reclamación (aprobada, en proceso, rechazada).
