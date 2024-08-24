@@ -1,0 +1,197 @@
+Tablas y relaciones del Cubo OLAP "Venta de Coches"
+
+CREATE TABLE Dimension_Modelo (
+    idModelo INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(20),
+    denominacion VARCHAR(100),
+    color VARCHAR(50),
+    numeroPuertas INT,
+    tipoMotor ENUM('diesel', 'gasolina'),
+    cilindrada INT,
+    potencia INT,
+    anyoDisenyo INT
+);
+CREATE TABLE Dimension_PuntoVenta (
+    idPuntoVenta INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(20),
+    denominacion VARCHAR(100),
+    calle VARCHAR(100),
+    numero VARCHAR(10),
+    codigoPostal VARCHAR(10),
+    localidad VARCHAR(50),
+    provincia VARCHAR(50),
+    pais VARCHAR(50)
+);
+CREATE TABLE Dimension_Comprador (
+    idComprador INT AUTO_INCREMENT PRIMARY KEY,
+    nombreDenominacion VARCHAR(100),
+    tipoComprador ENUM('empresa', 'persona'),
+    departamento VARCHAR(100),  -- Solo para empresas
+    sexo ENUM('hombre', 'mujer'),  -- Solo para personas
+    edad INT  -- Solo para personas
+);
+CREATE TABLE Dimension_Tiempo (
+    idTiempo INT AUTO_INCREMENT PRIMARY KEY,
+    fecha DATE,
+    dia INT,
+    mes INT,
+    trimestre INT,
+    anyo INT
+);
+CREATE TABLE Hechos_Ventas (
+    idVenta INT AUTO_INCREMENT PRIMARY KEY,
+    idTiempo INT,
+    idComprador INT,
+    idPuntoVenta INT,
+    idModelo INT,
+    costeBasico FLOAT,
+    costeExtras FLOAT,
+    gastos FLOAT,
+    precioVenta FLOAT,
+    beneficio FLOAT,
+    FOREIGN KEY (idTiempo) REFERENCES Dimension_Tiempo(idTiempo),
+    FOREIGN KEY (idComprador) REFERENCES Dimension_Comprador(idComprador),
+    FOREIGN KEY (idPuntoVenta) REFERENCES Dimension_PuntoVenta(idPuntoVenta),
+    FOREIGN KEY (idModelo) REFERENCES Dimension_Modelo(idModelo)
+);
+
+
+Datos para rellenar las tablas de dimensiones y la tabla de hechos
+
+
+RELLENAR LA TABLA DE TIEMPOS:
+
+
+DELIMITER //
+CREATE PROCEDURE RellenarDimensionTiempo(IN startYear INT, IN endYear INT)
+BEGIN
+    DECLARE currentDate DATE;
+    DECLARE endDate DATE;
+    
+    SET currentDate = CONCAT(startYear, '-01-01');
+    SET endDate = CONCAT(endYear, '-12-31');
+    WHILE currentDate <= endDate DO
+        INSERT INTO Dimension_Tiempo (idTiempo, fecha, dia, mes, trimestre, anyo)
+        VALUES (
+            DATE_FORMAT(currentDate, '%Y%m%d'),
+            currentDate,
+            DAY(currentDate),
+            MONTH(currentDate),
+            QUARTER(currentDate),
+            YEAR(currentDate)
+        );
+        SET currentDate = DATE_ADD(currentDate, INTERVAL 1 DAY);
+    END WHILE;
+END //
+DELIMITER;
+
+
+CALL RellenarDimensionTiempo(2020, 2024);
+
+
+DROP PROCEDURE IF EXISTS RellenarDimensionTiempo;
+
+
+RELLENAR LA TABLA DE MODELOS:
+
+
+INSERT INTO Dimension_Modelo (codigo, denominacion, color, numeroPuertas, tipoMotor, cilindrada, potencia, anyoDisenyo) VALUES
+('M001', 'Modelo A', 'Rojo', 4, 'gasolina', 2000, 150, 2022),
+('M002', 'Modelo B', 'Azul', 4, 'diesel', 2200, 180, 2021),
+('M003', 'Modelo C', 'Verde', 2, 'gasolina', 1800, 140, 2023),
+('M004', 'Modelo D', 'Negro', 4, 'diesel', 2400, 200, 2020),
+('M005', 'Modelo E', 'Blanco', 4, 'gasolina', 1600, 130, 2022),
+('M006', 'Modelo F', 'Gris', 2, 'diesel', 2200, 170, 2021),
+('M007', 'Modelo G', 'Amarillo', 4, 'gasolina', 2000, 160, 2023),
+('M008', 'Modelo H', 'Azul', 2, 'diesel', 1800, 150, 2020),
+('M009', 'Modelo I', 'Rojo', 4, 'gasolina', 2100, 190, 2022),
+('M010', 'Modelo J', 'Negro', 4, 'diesel', 2300, 210, 2021);
+
+
+RELLENAR LA TABLA DE COMPRADORES/CLIENTES:
+
+
+INSERT INTO Dimension_Comprador (nombreDenominacion, tipoComprador, departamento, sexo, edad) VALUES
+('Empresa ABC', 'empresa', 'Compras', NULL, NULL),
+('Empresa DEF', 'empresa', 'Logística', NULL, NULL),
+('Empresa GHI', 'empresa', 'Marketing', NULL, NULL),
+('Empresa JKL', 'empresa', 'Finanzas', NULL, NULL),
+('Empresa MNO', 'empresa', 'RRHH', NULL, NULL),
+('Pedro Martínez', 'persona', NULL, 'hombre', 30),
+('Laura González', 'persona', NULL, 'mujer', 25),
+('Carlos López', 'persona', NULL, 'hombre', 40),
+('Ana Sánchez', 'persona', NULL, 'mujer', 35),
+('Jorge Ramírez', 'persona', NULL, 'hombre', 45);
+
+
+RELLENAR LA TABLA DE PUNTOS DE VENTA:
+
+
+INSERT INTO Dimension_PuntoVenta (codigo, denominacion, calle, numero, codigoPostal, localidad, provincia, pais) VALUES
+('PV001', 'Concesionario CDMX', 'Calle Principal', '100', '01000', 'Ciudad de México', 'Distrito Federal', 'México'),
+('PV002', 'Concesionario Guadalajara', 'Avenida Secundaria', '200', '02000', 'Guadalajara', 'Jalisco', 'México'),
+('PV003', 'Concesionario Monterrey', 'Calle Tercera', '300', '03000', 'Monterrey', 'Nuevo León', 'México'),
+('PV004', 'Concesionario Puebla', 'Boulevard Cuarto', '400', '04000', 'Puebla', 'Puebla', 'México'),
+('PV005', 'Concesionario Cancún', 'Avenida Quinto', '500', '05000', 'Cancún', 'Quintana Roo', 'México'),
+('PV006', 'Concesionario Buenos Aires', 'Calle Primera', '101', '1100', 'Buenos Aires', 'Buenos Aires', 'Argentina'),
+('PV007', 'Concesionario Córdoba', 'Avenida Segunda', '202', '2200', 'Córdoba', 'Córdoba', 'Argentina'),
+('PV008', 'Concesionario Rosario', 'Calle Tercera', '303', '3300', 'Rosario', 'Santa Fe', 'Argentina'),
+('PV009', 'Concesionario Mendoza', 'Boulevard Cuarta', '404', '4400', 'Mendoza', 'Mendoza', 'Argentina'),
+('PV010', 'Concesionario Salta', 'Avenida Quinta', '505', '5500', 'Salta', 'Salta', 'Argentina'),
+('PV011', 'Concesionario Santiago', 'Calle Principal', '150', '10000', 'Santiago', 'Santiago', 'Chile'),
+('PV012', 'Concesionario Valparaíso', 'Avenida Secundaria', '250', '20000', 'Valparaíso', 'Valparaíso', 'Chile'),
+('PV013', 'Concesionario Concepción', 'Calle Tercera', '350', '30000', 'Concepción', 'Bío Bío', 'Chile'),
+('PV014', 'Concesionario La Serena', 'Boulevard Cuarta', '450', '40000', 'La Serena', 'Coquimbo', 'Chile'),
+('PV015', 'Concesionario Antofagasta', 'Avenida Quinta', '550', '50000', 'Antofagasta', 'Antofagasta', 'Chile'),
+('PV016', 'Concesionario Lima', 'Calle Principal', '160', '0100', 'Lima', 'Lima', 'Perú'),
+('PV017', 'Concesionario Arequipa', 'Avenida Secundaria', '260', '0200', 'Arequipa', 'Arequipa', 'Perú'),
+('PV018', 'Concesionario Trujillo', 'Calle Tercera', '360', '0300', 'Trujillo', 'La Libertad', 'Perú'),
+('PV019', 'Concesionario Cusco', 'Boulevard Cuarta', '460', '0400', 'Cusco', 'Cusco', 'Perú'),
+('PV020', 'Concesionario Piura', 'Avenida Quinta', '560', '0500', 'Piura', 'Piura', 'Perú');
+
+
+RELLENAR LA TABLA DE HECHOS "VENTAS":
+
+
+-- Procedimiento almacenado para rellenar la tabla de HECHOS
+DELIMITER //
+CREATE PROCEDURE RellenarHechos(IN iniYear INT, IN endYear INT, IN numHechos INT)
+BEGIN
+    DECLARE iniDate DATE;
+    DECLARE endDate DATE;
+    DECLARE miDate  DATE;
+    DECLARE dif  INT;
+    DECLARE idRand  INT;
+    
+    SET iniDate = CONCAT(iniYear, '-01-01');
+    SET endDate = CONCAT(endYear, '-12-31');
+    SET dif = DATEDIFF(endDate, iniDate);
+
+    WHILE numHechos > 0 DO
+        SET numHechos = numHechos - 1;
+        SET idRand = FLOOR(RAND() * dif);
+        SET miDate = DATE_FORMAT(DATE_ADD(iniDate, INTERVAL idRand DAY), '%Y%m%d');
+
+        INSERT INTO hechos_ventas
+        (idTiempo, idComprador, idPuntoVenta, idModelo, costeBasico, costeExtras, 
+         gastos, precioVenta, beneficio)
+        VALUES (
+            miDate,
+            FLOOR(1 + (RAND() * 10)), -- idComprador aleatorio entre 1 y 10
+            FLOOR(1 + (RAND() * 20)), -- idPuntoVenta aleatorio entre 1 y 20
+            FLOOR(1 + (RAND() * 10)), -- idModelo aleatorio entre 1 y 10
+            15000 + (RAND() * 5000),  -- costeBasico entre 15000 y 20000
+            1000 + (RAND() * 4000),   -- costeExtras entre 1000 y 5000
+            300 + (RAND() * 700),     -- gastos entre 300 y 1000
+            20000 + (RAND() * 10000), -- precioVenta entre 20000 y 30000
+            2500 + (RAND() * 2500)    -- beneficio entre 2500 y 5000
+        );
+    END WHILE;
+END //
+DELIMITER ;
+
+
+CALL RellenarHechos(2020, 2024, 150);
+
+
+DROP PROCEDURE IF EXISTS RellenarHechos;
