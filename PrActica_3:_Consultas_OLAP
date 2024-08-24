@@ -1,0 +1,200 @@
+(** ver al final unas notas sobre la clausula "JOIN")
+
+Consultas sobre e cubo OLAP de Venta de Coches
+Consulta 1:  Ventas Totales por Año
+Obtener las ventas totales (en términos de cantidad de vehículos vendidos y beneficio) agrupadas por año.
+
+SELECT
+    dt.anyo,
+    COUNT(hv.idVenta) AS total_ventas,
+    SUM(hv.beneficio) AS total_beneficio
+FROM
+    Hechos_Ventas hv
+JOIN
+    Dimension_Tiempo dt ON hv.idTiempo = dt.idTiempo
+GROUP BY
+    dt.anyo;
+
+==================================
+
+SELECT dt.anyo, COUNT(hv.idVenta) AS total_ventas, SUM(hv.beneficio) AS total_beneficio
+FROM Hechos_Ventas hv , Dimension_Tiempo dt
+WHERE hv.idTiempo = dt.idTiempo
+GROUP BY dt.anyo
+
+
+Consulta 2:  Ventas Totales por Año
+Obtener las ventas totales (en términos de cantidad de vehículos vendidos y beneficio) agrupadas por año, pero solo de compradores que tengan una edad entre 30 y 40 años.
+
+SELECT
+    dt.anyo,
+    COUNT(hv.idVenta) AS total_ventas,
+    SUM(hv.beneficio) AS total_beneficio
+FROM
+    Hechos_Ventas hv
+JOIN
+    Dimension_Tiempo dt ON hv.idTiempo = dt.idTiempo
+JOIN
+    Dimension_Comprador dc ON hv.idComprador = dc.idComprador
+WHERE
+    dc.edad BETWEEN 30 AND 40
+GROUP BY
+    dt.anyo
+
+==================================
+
+SELECT
+    dt.anyo,
+    COUNT(hv.idVenta) AS total_ventas,
+    SUM(hv.beneficio) AS total_beneficio
+FROM
+    Hechos_Ventas hv, Dimension_Tiempo dt, Dimension_Comprador dc
+WHERE
+    hv.idTiempo = dt.idTiempo
+    AND hv.idComprador = dc.idComprador
+    AND dc.edad BETWEEN 30 AND 40
+GROUP BY
+    dt.anyo
+
+
+Consulta 3: Ventas Totales por Punto de Venta
+Obtener las ventas totales (en términos de cantidad de vehículos vendidos y beneficio) agrupadas por punto de venta.
+
+
+Consulta 4: Ventas Totales por Tipo de Comprador
+Obtener las ventas totales (en términos de cantidad de vehículos vendidos y precio de venta) agrupadas por tipo de comprador (empresa o persona).
+
+
+Consulta 5: Ventas Totales por Año y Mes
+Obtener las ventas totales (en términos de cantidad de vehículos vendidos y beneficio) agrupadas por año y mes.
+
+
+Consulta 6: Ventas Totales por Modelo y Año de Diseño
+Obtener las ventas totales (en términos de cantidad de vehículos vendidos y precio de venta) agrupadas por modelo y año de diseño.
+
+
+Consulta 7: Beneficio Total por Trimestre
+Obtener el beneficio total agrupado por trimestre de los vehículos vendidos en México.
+
+
+Consulta 8: Ventas Totales por Color de Vehículo
+Obtener las ventas totales (en términos de cantidad de vehículos vendidos y precio de venta) agrupadas por color de vehículo en el año 2023
+
+
+Consulta 9: Ventas Totales por Edad del Comprador
+Obtener las ventas totales en Chile en el año 2024 (en términos de cantidad de vehículos vendidos y beneficio) agrupadas por rango de edad del comprador (e.g., 20-29, 30-39, etc.).
+
+SELECT
+    CASE
+        WHEN dc.edad < 30 THEN '-29'
+        WHEN dc.edad BETWEEN 30 AND 39 THEN '30-39'
+        WHEN dc.edad BETWEEN 40 AND 49 THEN '40-49'
+        WHEN dc.edad >= 50 THEN '50+'
+        ELSE 'Desconocido'
+    END AS rango_edad,
+    COUNT(hv.idVenta) AS total_ventas,
+    SUM(hv.beneficio) AS total_beneficio
+FROM
+    Hechos_Ventas hv
+JOIN
+    Dimension_Comprador dc ON hv.idComprador = dc.idComprador
+JOIN
+    Dimension_puntoventa dpv ON hv.idPuntoVenta = dpv.idPuntoVenta
+JOIN
+    Dimension_tiempo dt ON hv.idTiempo = dt.idTiempo
+WHERE
+    dc.tipoComprador = 'persona' AND dt.anyo = 2024 AND dpv.pais='Chile'
+GROUP BY
+    rango_edad
+
+
+Consulta 10: Coste Total de Fabricación por Modelo y Año de Diseño
+Obtener el coste total de fabricación (suma del coste básico y los extras) agrupado por modelo de vehículo y año de diseño.
+
+
+Algunos KPI's
+Promedio de Beneficio por Venta: Mide la rentabilidad promedio de cada venta.
+Ventas Totales por Región (País): Evalúa el desempeño de ventas en diferentes países.
+Coste Promedio de Fabricación por Modelo: Ayuda a entender los costos de producción de diferentes modelos.
+Promedio de Gastos por Vehículo Vendido: Proporciona una visión de los gastos asociados a cada venta.
+Beneficio Total por Tipo de Motor: Analiza la rentabilidad basada en el tipo de motor de los vehículos vendidos.
+
+===========================================
+
+La clausula JOIN
+
+Sintaxis Básica del JOIN:
+
+Cuando se utiliza JOIN, se está combinando filas de dos o más tablas basadas en una condición relacionada, típicamente una clave que existe en ambas tablas.
+
+SELECT columnas
+FROM tabla1
+JOIN tabla2 ON tabla1.columna_comun = tabla2.columna_comun;
+
+JOIN: Indica que se debe combinar las filas de las dos tablas.
+ON: Especifica la condición de unión (la relación entre las dos tablas).
+
+Un ejemplo básico:
+SELECT empleados.nombre, departamentos.nombre
+FROM empleados
+JOIN departamentos ON empleados.departamento_id = departamentos.id;
+
+En este ejemplo, las tablas empleados y departamentos se unen basándose en la columna común departamento_id en empleados y id en departamentos.
+
+Tipos de JOIN:
+
+Existen varios tipos de JOIN, cada uno con un comportamiento diferente en cuanto a cómo se manejan las filas que no tienen una coincidencia en la otra tabla.
+
+a) INNER JOIN (o simplemente JOIN)
+Retorna solo las filas donde hay una coincidencia en ambas tablas. Es el tipo de JOIN más común y se usa por defecto si solo se escribe JOIN.
+
+Ejemplo (equivalente si solo se escribe 'JOIN'):
+
+SELECT empleados.nombre, departamentos.nombre
+FROM empleados
+INNER JOIN departamentos ON empleados.departamento_id = departamentos.id;
+Este ejemplo devolverá solo los empleados que tienen un departamento asociado. Solo incluye filas que tienen coincidencias en ambas tablas.
+
+b) LEFT JOIN
+Retorna todas las filas de la tabla a la izquierda del JOIN y las filas coincidentes de la tabla a la derecha. Si no hay coincidencia, las columnas de la tabla de la derecha tendrán NULL.
+
+Ejemplo:
+
+SELECT empleados.nombre, departamentos.nombre
+FROM empleados
+LEFT JOIN departamentos ON empleados.departamento_id = departamentos.id;
+
+Este ejemplo devolverá todos los empleados, incluyendo aquellos que no están asignados a ningún departamento. Para estos empleados, la columna del departamento mostrará NULL. El resultado incluye todas las filas de empleados y las coincidencias de departamentos. Las filas de empleados sin coincidencias en departamentos mostrarán NULL en la columna nombre de departamentos.
+
+c) RIGHT JOIN
+Es el opuesto del LEFT JOIN. Retorna todas las filas de la tabla a la derecha del JOIN y las filas coincidentes de la tabla a la izquierda. Si no hay coincidencia, las columnas de la tabla de la izquierda tendrán NULL.
+
+Ejemplo:
+
+SELECT empleados.nombre, departamentos.nombre
+FROM empleados
+RIGHT JOIN departamentos ON empleados.departamento_id = departamentos.id;
+
+Este ejemplo devolverá todos los departamentos, incluyendo aquellos que no tienen empleados asignados. Para estos departamentos, la columna de empleados mostrará NULL. El resultado incluye todas las filas de departamentos y las coincidencias de empleados. Las filas de departamentos sin coincidencias en empleados mostrarán NULL en las columna nombre de empleados.
+
+d) FULL JOIN
+Retorna todas las filas cuando hay una coincidencia en una de las tablas o en ambas. Las filas que no tienen coincidencias en la otra tabla mostrarán NULL en las columnas correspondientes.
+
+Ejemplo:
+
+SELECT empleados.nombre, departamentos.nombre
+FROM empleados
+FULL JOIN departamentos ON empleados.departamento_id = departamentos.id;
+
+Este ejemplo devolverá todos los empleados y todos los departamentos, combinando filas donde hay coincidencias y mostrando NULL donde no las hay.
+
+Resumiendo:
+
+INNER JOIN: Muestra solo las filas que tienen coincidencias en ambas tablas.
+LEFT JOIN: Muestra todas las filas de la tabla izquierda, con coincidencias de la derecha si las hay; NULL si no las hay.
+RIGHT JOIN: Muestra todas las filas de la tabla derecha, con coincidencias de la izquierda si las hay; NULL si no las hay.
+FULL JOIN: Muestra todas las filas de ambas tablas, con coincidencias cuando las hay y NULL cuando no las hay.
+Consejos Prácticos:
+INNER JOIN es el más común y debería ser la opción predeterminada cuando solo nos interesan las coincidencias.
+Usa LEFT JOIN o RIGHT JOIN cuando queramos asegurar que todas las filas de una tabla específica estén presentes en el resultado.
+FULL JOIN es menos común y se utiliza cuando necesitamos combinar todo, incluso filas sin coincidencias en ambas tablas.
