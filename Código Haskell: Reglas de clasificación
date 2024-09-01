@@ -1,0 +1,244 @@
+import System.IO
+import Data.List (elemIndex)
+import Data.Maybe (fromJust)
+
+--------------------------------------------------------------------
+-- Tipos de datos para representar reglas de clasifiacción:
+-- Tipo antecedente de la regla: (soporte ["valores"])
+-- Tipo consecuente de la regla: [(confianza, "clase")]
+-- Tipo REGLA: (Antecedente,Consecuente)
+type Antecedente = (Int, [String])
+type Consecuente = [(Int, String)]
+type Regla = (Antecedente, Consecuente)
+type MatConfusion = [[Int]]
+
+--------------------------------------------------------------------
+-- Divide una cadena en tokens usando el caracter separador (sep)
+-- como delimitador. El valor devuelto es una lista de cadenas
+-- que contiene los tokens ya separados 
+split :: Char -> String -> [String]
+split _ "" = []
+split sep cad = primero : cola
+  where (primero, resto) = span (/= sep) cad
+        cola = if null resto
+               then []
+               else split sep (tail resto)
+
+--------------------------------------------------------------------
+-- Carga un fichero de datos CSV, a partir de una ruta (FilePath)
+-- y devuelve una lista de listas (filas del fichero)
+-- Es una función MONÁDICA (IO -> entrada/salida)
+-- por lo que debe invocarse del sigiente modo:
+--      datos <- loadCSV "fichero.csv"
+-- (si se usa '=' en vez de '<-' la asignación sería "incorrecta")
+loadCSV :: FilePath -> IO [[String]]
+loadCSV filePath = do
+    content <- readFile filePath
+    let rows = lines content
+        csvData = map (split ',') rows -- la coma ',' es el separador en el fichero de datos
+    return csvData
+
+--------------------------------------------------------------------
+-- Para imprimir un dataset, una fila debajo de la otra (MÓNADA)
+imprimirDatos :: [[String]] -> IO()
+imprimirDatos datos = do putStrLn (unlines (map unwords datos))
+
+--------------------------------------------------------------------
+-- Función auxiliar para seleccionar elementos específicos de una fila
+-- Recibe una lista de posiciones (enteros) y una fila de datos (registro)
+-- Devuelve la misma fila, pero solo los valores de las posiciones indicadas
+seleccionarFila :: [Int] -> [String] -> [String]
+seleccionarFila indices fila = [fila !! i | i <- indices]
+
+--------------------------------------------------------------------
+-- Función para seleccionar columnas específicas de un dataset
+-- Recibe un dataset [[String]] y un alista de posiciones (enteros)
+-- Devuelve el mismo dataset, pero solo las columnas indicadas
+seleccionarColumnas :: [[String]] -> [Int] -> [[String]]
+seleccionarColumnas dataset indices = map (seleccionarFila indices) dataset
+
+--------------------------------------------------------------------
+-- Función para dividir un dataset en dos partes: training y test basados en un rango de índices
+-- Recibe el dataset original y un rango inicio-fin para el conjunto de test
+-- devuelve una dupla con dos datasets: (datosTraining, datosTest)
+dividirDataset :: [[String]] -> Int -> Int -> ([[String]], [[String]])
+dividirDataset dataset inicioTest finTest = (datosTraining, datosTest)
+  where
+    datosTest = take (finTest - inicioTest + 1) (drop inicioTest dataset)
+    datosTraining = take inicioTest dataset ++ drop (finTest + 1) dataset
+
+--------------------------------------------------------------------
+-- Función auxiliar para extraer el antecedente y la clase de un registro
+-- Recibe un fila o registro de datos y la posición de la variable de calse
+-- Devuelve una dupla con el antecedente y el valor de clase
+extraerAntecedenteYClase :: [String] -> Int -> ([String], String)
+extraerAntecedenteYClase fila posClase = (principio ++ final, clase)
+  where (principio, clase:final) = splitAt posClase fila
+
+--------------------------------------------------------------------
+-- Función para generar una regla de clasificación a partir de una fila o registro
+-- Recibe una fila de datos, la posición de la variable de clase y la lista de clases
+-- Devuelve un valor de tipo Regla (type Regla) con soporte 1
+crearRegla :: [String] -> Int -> [String] -> Regla
+crearRegla fila posClase clases = ((1,antecedente) , consecuente)
+  where (antecedente, clase) = extraerAntecedenteYClase fila posClase
+        consecuente = map (\c -> if c == clase then (1, c) else (0, c)) clases
+
+--------------------------------------------------------------------
+-- Función para comparar el antecedente de una fila de datos con el de una regla
+-- Recibe una fila de datos (registro), la posición de la clase y una regla (Type Regla)
+-- Devuelve True si el antecedente de la fila y la regla coiniden (False si no)
+antecedentesIguales :: [String] -> Int -> Regla -> Bool
+antecedentesIguales fila posClase ((_, antecedenteRegla), _) = antecedenteFila == antecedenteRegla
+  where (antecedenteFila, _) = extraerAntecedenteYClase fila posClase
+
+--------------------------------------------------------------------
+-- Función para actualizar un consecuente según la clase indicada
+-- Recibe una consecuente (Type Consecuente) y una clase
+-- Devuelve el consecuente actualizado haciendo confianza+1 en la clase correspondiente
+actualizarConsecuente :: Consecuente -> String -> Consecuente
+actualizarConsecuente [] _ = []
+actualizarConsecuente ((conf, clase):resto) claseBuscada
+    | clase == claseBuscada = (conf + 1, clase) : resto
+    | otherwise = (conf, clase) : actualizarConsecuente resto claseBuscada
+
+--------------------------------------------------------------------
+-- Función para actualizar una regla existente
+-- Recibe una regla y una clase
+-- Devuelve la regla actualizada: soporte+1 y confianza+1 (en al clase que corresponda)
+actualizarRegla :: Regla -> String -> Regla
+actualizarRegla ((sop, antec), consec) claseBuscada = ((sop+1, antec), nuevoConsecuente)
+  where nuevoConsecuente = actualizarConsecuente consec claseBuscada
+
+--------------------------------------------------------------------
+-- Función para procesar un registro y actualizar el conjunto de reglas
+-- Recibe una fila, la posición de al clase, la lista de clases y el conjunto de reglas
+-- Devuelve el conjunto de reglas actualizado:
+--   - Se añade una regla nueva con soporte 1 si no coincide el antecedente de la fila con ninguna regla
+--   - Si hay una regla coincidente se suma 1 al soporte y a la confianza correspondiente
+procesarRegistro :: [String] -> Int -> [String] -> [Regla] -> [Regla]
+procesarRegistro fila posClase clases reglas
+    | null coincidente = reglas ++ [crearRegla fila posClase clases]  -- La nueva regla a añadir si no hay coincidencias
+    | otherwise        = noCoincidente ++ [actualizarRegla reglaCoincidente (fila!!posClase) ] ++ resto
+  where
+    -- Dividimos las reglas en aquellas que no coinciden y la que coincide
+    (noCoincidente, coincidente) = span (not . antecedentesIguales fila posClase) reglas
+    (reglaCoincidente:resto) = coincidente
+
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+-- Función principal para generar el conjunto de reglas a partir de un dataset
+-- Recibe el Dataset, la posición de la va de clase y la lista de clases
+-- Devuelve el conjuto de reglas => MODELO DE REGLAS DE CLASIFICACIÓN
+generarReglas :: [[String]] -> Int -> [String] -> [Regla]
+generarReglas [] _ _ = []
+generarReglas (fila:resto) posClase clases = foldl procesar [reglaInicial] resto
+  where
+    reglaInicial = crearRegla fila posClase clases -- Regla inicial a partir de la primera fila (registro)
+    -- Función auxiliar para procesar cada fila y actualizar el conjunto de reglas
+    procesar :: [Regla] -> [String] -> [Regla]
+    procesar reglas fila = procesarRegistro fila posClase clases reglas
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+
+
+--------------------------------------------------------------------
+-- Función para convertir una regla en una cadena de texto
+formatearRegla :: Regla -> String
+formatearRegla ((soporte, antecedente), consecuente) =
+    "ATCD: # " ++ show soporte ++ ": " ++ unwords antecedente ++
+    "\t=> CNSC:" ++ formatearConsecuente consecuente
+-- Función para convertir el consecuente en una cadena de texto
+formatearConsecuente :: Consecuente -> String
+formatearConsecuente consecuente =
+    unwords [" (#" ++ show confianza ++ ": " ++ clase ++ ")" | (confianza, clase) <- consecuente]
+-- Función para imprimir una lista de reglas, una debajo de otra
+imprimirReglas :: [Regla] -> IO ()
+imprimirReglas reglas = putStrLn (unlines (map formatearRegla reglas))
+
+
+
+--------------------------------------------------------------------
+-- Para una fila del testData (extrayendo el valor de clase) y una regla
+-- Devuelve la clase con más confianza si los antededentes coinciden (si no devuelve "")
+-- Función para aplicar una regla a una fila (registro) del testData
+aplicarRegla :: [String] -> Int -> Regla -> String
+aplicarRegla fila posClase ((_, antecedente), consecuente)
+    | antecedente == (take posClase fila ++ drop (posClase + 1) fila) = claseMaximaConfianza
+    | otherwise = ""
+  where
+    -- Encontrar la clase con mayor confianza en el consecuente
+    claseMaximaConfianza = snd $ maximum consecuente
+    -- claseMaximaConfianza = snd $ maximumBy (\(c1, _) (c2, _) -> compare c1 c2) consecuente
+
+--------------------------------------------------------------------
+-- Función para predecir la clase de una fila (registro) usando un conjunto de reglas
+-- 
+predecirClase :: [String] -> Int -> [Regla] -> String
+predecirClase _ _ [] = ""
+predecirClase fila posClase (regla1:resto)
+    | clasePredicha == "" = predecirClase fila posClase resto
+    | otherwise = clasePredicha
+  where
+    clasePredicha = aplicarRegla fila posClase regla1
+
+
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+-- Función para el MODELO DE REGLAS usando el testData
+testReglas :: [Regla] -> [[String]] -> Int -> [String] -> MatConfusion
+testReglas reglas testData posClase clases = foldl actualizarMatriz matrizInicial testData
+  where
+    -- Matriz de confusión inicial, con todos los valores a cero
+    matrizInicial = replicate (length clases) (replicate (length clases) 0)
+    -- Función auxiliar para actualizar la matriz de confusión
+    actualizarMatriz :: MatConfusion -> [String] -> MatConfusion
+    actualizarMatriz matConfusion fila = 
+      actualizarMatrizConfusion matConfusion claseReal clasePredicha clases
+        where
+          claseReal = fila !! posClase
+          clasePredicha = predecirClase fila posClase reglas
+          
+--------------------------------------------------------------------
+-- Dada una matriz de confusión, la clase real y la clase predicha (y la lista de clases)
+-- actualiza la matriz: Suma +1 en la posición que coresponda
+actualizarMatrizConfusion :: MatConfusion -> String -> String -> [String] -> MatConfusion
+actualizarMatrizConfusion matConfusion claseReal clasePredicha clases =
+  [if fil == posReal 
+   then [if col == posPred
+         then matConfusion !! fil !! col + 1
+         else matConfusion !! fil !! col | col <- [0..(length clases - 1)]]
+   else matConfusion !! fil | fil <- [0..(length clases - 1)]
+  ]
+  where
+    posReal = fromJust $ elemIndex claseReal clases
+    posPred = fromJust $ elemIndex clasePredicha clases
+
+
+{-
+datos <- loadCSV "datos.csv"
+posClase = 0
+clases = ["e", "p"]
+dat = seleccionarColumnas datos [0,3,11,16,21]
+(trainData, testData) = dividirDataset dat 0 800
+reglas = generarReglas trainData posClase clases
+imprimirReglas reglas
+
+mat = testReglas reglas testData posClase clases
+
+r1 = head datos
+r2 = head $ tail datos
+rule1 = crearRegla r1 0 ["e", "p"]
+rule2 = crearRegla r2 0 ["e", "p"]
+-}
+
+
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+-- 
+-- Escribir más código a partir de aquí
+-- 
